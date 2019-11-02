@@ -17,6 +17,8 @@ namespace Demo
         private static readonly string FaceApiUrl =
             Environment.GetEnvironmentVariable("FaceApiUrl", EnvironmentVariableTarget.Process);
 
+        private static HttpClient HttpClient = new HttpClient();
+
         [FunctionName("upload")]
         public static async Task<HttpResponseMessage> UploadImage(
            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request,
@@ -59,8 +61,10 @@ namespace Demo
         [FunctionName("ReadFaceEmotions")]
         public static async Task<string> ReadFaceEmotions([ActivityTrigger] byte[] imageAsByteArray)
         {
-            HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", SubscriptionKey);
+            if(HttpClient.DefaultRequestHeaders == null)
+            {
+                HttpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", SubscriptionKey);
+            }
 
             string requestParameters = "returnFaceId=true&returnFaceLandmarks=false" +
                 "&returnFaceAttributes=age,gender,smile,facialHair,glasses,emotion";
@@ -72,7 +76,7 @@ namespace Demo
             {
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-                var response = await client.PostAsync(uri, content);
+                var response = await HttpClient.PostAsync(uri, content);
                 jsonResult = await response.Content.ReadAsStringAsync();
             }
 
