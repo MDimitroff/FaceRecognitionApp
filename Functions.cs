@@ -61,11 +61,6 @@ namespace Demo
         [FunctionName("ReadFaceEmotions")]
         public static async Task<string> ReadFaceEmotions([ActivityTrigger] byte[] imageAsByteArray)
         {
-            if(HttpClient.DefaultRequestHeaders == null)
-            {
-                HttpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", SubscriptionKey);
-            }
-
             string requestParameters = "returnFaceId=true&returnFaceLandmarks=false" +
                 "&returnFaceAttributes=age,gender,smile,facialHair,glasses,emotion";
 
@@ -74,6 +69,7 @@ namespace Demo
 
             using (var content = new ByteArrayContent(imageAsByteArray))
             {
+                content.Headers.Add("Ocp-Apim-Subscription-Key", SubscriptionKey);
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
                 var response = await HttpClient.PostAsync(uri, content);
