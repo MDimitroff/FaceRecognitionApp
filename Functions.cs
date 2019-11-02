@@ -6,6 +6,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.ApplicationInsights.DataContracts;
 
 namespace Demo
 {
@@ -19,16 +22,38 @@ namespace Demo
 
         private static HttpClient HttpClient = new HttpClient();
 
+        private static TelemetryClient TelemetryClient = new TelemetryClient(
+            new TelemetryConfiguration(Environment.GetEnvironmentVariable("APP_INSIGHTS_KEY", EnvironmentVariableTarget.Process)));
+
         [FunctionName("upload")]
         public static async Task<HttpResponseMessage> UploadImage(
            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request,
            [OrchestrationClient] DurableOrchestrationClient client,
            ILogger log)
         {
+            log.LogInformation("[POST] action to endpoint /upload started");
+            DateTime start = DateTime.UtcNow;
+            
             var serializedHttpContent = await (new HttpMessageContent(request).ReadAsByteArrayAsync());
             var instanceId = await client.StartNewAsync("StartOrchestrator", serializedHttpContent);
+            var response = await client.WaitForCompletionOrCreateCheckStatusResponseAsync(request, instanceId, TimeSpan.FromSeconds(30), TimeSpan.Zero);
 
-            return await client.WaitForCompletionOrCreateCheckStatusResponseAsync(request, instanceId, TimeSpan.FromSeconds(30), TimeSpan.Zero); ;
+            // Track ApplicationInsights dependency
+            var dependency = new DependencyTelemetry
+            {
+                Name = "POST image to upload API",
+                Target = "FaceRecognitionApp",
+                Data = "FaceRecognitionApp URL",
+                Timestamp = start,
+                Duration = DateTime.UtcNow - start,
+                Success = response.StatusCode == System.Net.HttpStatusCode.OK
+            };
+            dependency.Context.User.Id = "[POST] /upload API";
+
+            TelemetryClient.TrackDependency(dependency);
+            log.LogInformation("[POST] action to endpoint /upload ended");
+
+            return response;
         }
 
         [FunctionName("StartOrchestrator")]
