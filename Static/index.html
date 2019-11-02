@@ -1,0 +1,241 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+   <meta name="mobile-web-app-capable" content="yes">
+   <title>Azure Functions - Cognitive Services Demo</title>
+   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous"> 
+   <style>
+       .showElement {
+        display: block;
+       }
+
+       .hideElement {
+           display: none;
+       }
+
+       img {
+           max-width: 100%;
+           max-height: 100%;
+           margin: auto;
+           width: 100%;
+       }
+
+       .main-container {
+           margin: auto;
+           width: 50%;
+           min-height: 300px;
+       }
+
+        .loader,
+        .loader:before,
+        .loader:after {
+        border-radius: 50%;
+        width: 2.5em;
+        height: 2.5em;
+        -webkit-animation-fill-mode: both;
+        animation-fill-mode: both;
+        -webkit-animation: load7 1.8s infinite ease-in-out;
+        animation: load7 1.8s infinite ease-in-out;
+        }
+        .loader {
+        color: #5ed627;
+        font-size: 7px;
+        margin: 80px auto;
+        position: relative;
+        text-indent: -9999em;
+        -webkit-transform: translateZ(0);
+        -ms-transform: translateZ(0);
+        transform: translateZ(0);
+        -webkit-animation-delay: -0.16s;
+        animation-delay: -0.16s;
+        }
+        .loader:before,
+        .loader:after {
+        content: '';
+        position: absolute;
+        top: 0;
+        }
+        .loader:before {
+        left: -3.5em;
+        -webkit-animation-delay: -0.32s;
+        animation-delay: -0.32s;
+        }
+        .loader:after {
+        left: 3.5em;
+        }
+        @-webkit-keyframes load7 {
+        0%,
+        80%,
+        100% {
+            box-shadow: 0 2.5em 0 -1.3em;
+        }
+        40% {
+            box-shadow: 0 2.5em 0 0;
+        }
+        }
+        @keyframes load7 {
+        0%,
+        80%,
+        100% {
+            box-shadow: 0 2.5em 0 -1.3em;
+        }
+        40% {
+            box-shadow: 0 2.5em 0 0;
+        }
+        }
+    </style>
+</head>
+<body>
+    <main role="main">
+        <div class="album py-5 bg-light main-container">
+            <div class="container">    
+                <div class="row">                  
+                    <div class="col-md-12">
+                        <h3>Emotions detector</h2><br />
+                        <form method="POST" action="upload" id="uploadForm" enctype="multipart/form-data">
+                            <input type="file" name="blobImage" id="blobImage" accept="image/*" value="Choose file">
+                            <input type="button" value="Submit"/> 
+                            <div id="loader" class="loader hideElement"></div>
+                        </form><br />
+                        <div id="image-information" class="row hideElement">
+                            <table style="width:100%" id="result-table">
+                                <tr>
+                                    <th>Sex</th>
+                                    <th>Age</th>
+                                    <th>Glasses</th>
+                                    <th>Beard</th>
+                                    <th>Smile</th>
+                                    <th>Happiness</th>
+                                    <th>Surprise</th>
+                                    <th>Neutral</th>
+                                    <th>Sadness</th>                                    
+                                    <th>Anger</th>
+                                </tr>
+                                <tbody id="table-body">
+                                <tr>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <br />
+                        <div id="image-preview-container">
+                            <img src="" id="image-preview" class="image-preview hideElement"/>
+                        </div>
+                    </div>
+                </div>
+            </div> 
+        </div>
+    </main>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script>
+        if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
+            alert('The File APIs are not fully supported in this browser.');
+        }  
+
+        $(':button').click(function(e){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            $('#loader').removeClass('hideElement');
+            $('#image-preview').removeClass('showElement').addClass('hideElement');
+            $('#image-information').removeClass('showElement').addClass('hideElement');;
+            var formData = new FormData($('form')[0]);
+
+            $.ajax({
+                type: 'POST',
+                url: 'https://face-app-functions.azurewebsites.net/upload',
+                data: formData,
+                cache: false,
+                contentType: false,
+                processData: false,
+                success: function(data) {
+                    $('#loader').addClass('hideElement');
+                    onSuccess(data);
+                },
+                error: function(request, status, error) {
+                    alert("Operation failure: " + error);
+                    $('#loader').addClass('hideElement');
+                    $('#image-preview').addClass('hideElement');
+                }
+            });
+        });   
+        
+        function onSuccess(data) {
+            data = JSON.parse(data);
+
+            if (data && data.statusQueryGetUri === undefined) {
+                $('#image-information').removeClass('hideElement').addClass('showElement');
+                $("#result-table #table-body tr").remove();
+                
+                for (var key in data) {
+                    $("#result-table #table-body")
+                    .append($('<tr>')
+                        .append($('<td>')
+                            .append($('<span>')
+                                .html(data[key]['faceAttributes']['gender'])
+                            )
+                        ).append($('<td>')
+                            .append($('<span>')
+                                .html(data[key]['faceAttributes']['age'])
+                        )).append($('<td>')
+                            .append($('<span>')
+                                .html(data[key]['faceAttributes']['glasses'])
+                        )).append($('<td>')
+                            .append($('<span>')
+                                .html(Math.round(data[key]['faceAttributes']['facialHair']['beard'] * 100) + "%")
+                        )).append($('<td>')
+                            .append($('<span>')
+                                .html(Math.round(data[key]['faceAttributes']['smile'] * 100) + "%")
+                        )).append($('<td>')
+                            .append($('<span>')
+                                .html(Math.round(data[key]['faceAttributes']['emotion']['happiness'] * 100) + "%")
+                        )).append($('<td>')
+                            .append($('<span>')
+                                .html(Math.round(data[key]['faceAttributes']['emotion']['surprise'] * 100) + "%")
+                        )).append($('<td>')
+                            .append($('<span>')
+                                .html(Math.round(data[key]['faceAttributes']['emotion']['neutral'] * 100) + "%")
+                        )).append($('<td>')
+                            .append($('<span>')
+                                .html(Math.round(data[key]['faceAttributes']['emotion']['sadness'] * 100) + "%")
+                        )).append($('<td>')
+                            .append($('<span>')
+                                .html(Math.round(data[key]['faceAttributes']['emotion']['anger'] * 100) + "%")
+                        ))
+                    );
+                } // end for
+
+                previewImage();
+                console.log(data);
+            } else {
+                $('#image-information').removeClass('showElement').addClass('hideElement');
+                alert('Operation aborted. Face recognition API is taking longer to respond');
+            }
+        }
+
+        function previewImage(input) {
+            var reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#image-preview')
+                        .attr('src', e.target.result)
+                        .removeClass('hideElement')
+                        .addClass('showElement');
+                }
+
+                var input = document.getElementById('blobImage');
+                reader.readAsDataURL(input.files[0]);
+        }
+    </script>
+</body>
+</html>
