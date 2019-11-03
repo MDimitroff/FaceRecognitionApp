@@ -36,7 +36,7 @@ namespace Demo
             
             var serializedHttpContent = await (new HttpMessageContent(request).ReadAsByteArrayAsync());
             var instanceId = await client.StartNewAsync("StartOrchestrator", serializedHttpContent);
-            var response = await client.WaitForCompletionOrCreateCheckStatusResponseAsync(request, instanceId, TimeSpan.FromSeconds(30), TimeSpan.Zero);
+            var response = await client.WaitForCompletionOrCreateCheckStatusResponseAsync(request, instanceId, TimeSpan.FromMinutes(2), TimeSpan.Zero);
 
             // Track ApplicationInsights dependency
             var dependency = new DependencyTelemetry
